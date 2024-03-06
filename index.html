@@ -1,209 +1,199 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>I&S project</title>
-    <style>
-      body {
-        margin: 0;
-        overflow: hidden;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        height: 100vh;
-      }
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>I&S project Sonya</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
 
-      canvas,
-      video {
-        display: block;
-        margin: auto;
-        position: absolute;
-        top: 0;
-        left: 0;
-      }
+    canvas,
+    video {
+      display: block;
+      margin: auto;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
 
-      #audio-visualizer {
-        width: 50vw;
-        height: 50vh;
-        z-index: 1;
-        background-color: transparent;
-      }
+    #audio-visualizer {
+      width: 50vw;
+      height: 50vh;
+      z-index: 1;
+      background-color: transparent;
+    }
 
-      #video-visualizer {
-        width: 100vw;
-        height: 100vh;
-      }
-    </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-    <script src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
-    <script>
-      let sketch = function (p) {
-        const size = 10;
-        const width = 800;
-        const height = 1000;
-        const cols = width / size;
-        const rows = height / size;
-        const symbols = [" ", ".", "!", "*", "#", "0"];
-        let video;
+    #video-visualizer {
+      width: 100vw;
+      height: 100vh;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <script src="https://npm/face-api.js@0.22.2/build/commonjs/index.js"></script>
+  <script>
+    let sketch = function (p) {
+      const size = 10;
+      const width = 800;
+      const height = 1000;
+      const cols = width / size;
+      const rows = height / size;
+      const symbols = [" ", ".", "!", "*", "#", "0"];
+      let video;
 
-        p.setup = function () {
-          p.createCanvas(width, height);
-          video = p.createCapture(p.VIDEO);
-          video.size(width, height);
-          video.hide();
-        };
-
-        p.draw = function () {
-          p.background(21, 2, 150);
-          video.loadPixels();
-
-          for (let i = 0; i < cols; i++) {
-            for (let j = 0; j < rows; j++) {
-              let index = (j * size * width + i * size) * 4;
-              let r = video.pixels[index];
-              let g = video.pixels[index + 1];
-              let b = video.pixels[index + 2];
-              let average = (r + g + b) / 3;
-              let symbolIndex = Math.floor(
-                p.map(average, 0, 255, 0, symbols.length - 1),
-              );
-              let gradientColor = p.color(
-                p.map(i, 0, cols - 1, 255, 0),
-                255,
-                255,
-              );
-
-              p.textAlign(p.RIGHT, p.CENTER);
-              p.fill(gradientColor);
-              p.text(symbols[symbolIndex], (cols - i - 1) * size, j * size);
-            }
-          }
-        };
-
-        p.windowResized = function () {
-          p.resizeCanvas(width, height);
-        };
+      p.setup = function () {
+        p.createCanvas(width, height);
+        video = p.createCapture(p.VIDEO);
+        video.size(width, height);
+        video.hide();
       };
 
-      window.onload = async function () {
-        const audioContext = new (window.AudioContext ||
-          window.webkitAudioContext)();
-        const analyser = audioContext.createAnalyser();
-        const canvas = document.createElement("canvas");
-        document.body.appendChild(canvas);
-        const canvasCtx = canvas.getContext("2d");
-        const waves = [];
+      p.draw = function () {
+        p.background(21, 2, 150);
+        video.loadPixels();
 
-        await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
-        await faceapi.nets.faceLandmark68Net.loadFromUri("/models");
-        await faceapi.nets.faceRecognitionNet.loadFromUri("/models");
+        for (let i = 0; i < cols; i++) {
+          for (let j = 0; j < rows; j++) {
+            let index = (j * size * width + i * size) * 4;
+            let r = video.pixels[index];
+            let g = video.pixels[index + 1];
+            let b = video.pixels[index + 2];
+            let average = (r + g + b) / 3;
+            let symbolIndex = Math.floor(p.map(average, 0, 255, 0, symbols.length - 1));
+            let gradientColor = p.color(p.map(i, 0, cols - 1, 255, 0), 255, 255);
 
-        const video = document.createElement("video");
-        document.body.appendChild(video);
-        const displaySize = {
-          width: window.innerWidth / 2,
-          height: window.innerHeight / 2,
-        };
-        faceapi.matchDimensions(video, displaySize);
-
-        navigator.mediaDevices
-          .getUserMedia({ video: {} })
-          .then((stream) => {
-            video.srcObject = stream;
-            return video.play();
-          })
-          .then(() => {
-            visualize();
-          })
-          .catch((err) => {
-            console.error("Error accessing camera:", err);
-          });
-
-        function visualize() {
-          analyser.fftSize = 256;
-          const bufferLength = analyser.frequencyBinCount;
-          const dataArray = new Uint8Array(bufferLength);
-
-          canvas.width = window.innerWidth / 2;
-          canvas.height = window.innerHeight / 2;
-
-          createWaves(bufferLength);
-
-          function draw() {
-            analyser.getByteFrequencyData(dataArray);
-
-            canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
-
-            for (let i = 0; i < bufferLength; i++) {
-              const barHeight = dataArray[i] / 2;
-              const wave = waves[i];
-
-              const y =
-                wave.y + Math.sin(wave.time) * wave.amplitude * barHeight;
-
-              drawLines(wave.x, y, 4, 3);
-
-              wave.time += wave.frequency;
-
-              if (wave.x > canvas.width) {
-                wave.x = 0;
-              }
-            }
-
-            requestAnimationFrame(draw);
+            p.textAlign(p.RIGHT, p.CENTER);
+            p.fill(gradientColor);
+            p.text(symbols[symbolIndex], (cols - i - 1) * size, j * size);
           }
-
-          draw();
         }
+      };
 
-        function Wave(x, y, speed, amplitude, frequency) {
-          this.x = x;
-          this.y = y;
-          this.speed = speed;
-          this.amplitude = amplitude;
-          this.frequency = frequency;
-          this.time = 0;
-        }
+      p.windowResized = function () {
+        p.resizeCanvas(width, height);
+      };
+    };
 
-        function createWaves(bufferLength) {
-          waves.length = 0;
+    window.onload = async function () {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const analyser = audioContext.createAnalyser();
+      const canvas = document.createElement("canvas");
+      document.body.appendChild(canvas);
+      const canvasCtx = canvas.getContext("2d");
+      const waves = [];
+
+      // Load the face-api.js models from CDN
+      await faceapi.nets.tinyFaceDetector.loadFromUri("https://cdn.jsdelivr.net/npm/face-api.js/models");
+      await faceapi.nets.faceLandmark68Net.loadFromUri("https://cdn.jsdelivr.net/npm/face-api.js/models");
+      await faceapi.nets.faceRecognitionNet.loadFromUri("https://cdn.jsdelivr.net/npm/face-api.js/models");
+
+      const video = document.createElement("video");
+      document.body.appendChild(video);
+      const displaySize = { width: window.innerWidth / 2, height: window.innerHeight / 2 };
+      faceapi.matchDimensions(video, displaySize);
+
+      navigator.mediaDevices
+        .getUserMedia({ video: {} })
+        .then((stream) => {
+          video.srcObject = stream;
+          return video.play();
+        })
+        .then(() => {
+          visualize();
+        })
+        .catch((err) => {
+          console.error("Error accessing camera:", err);
+        });
+
+      function visualize() {
+        analyser.fftSize = 256;
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+
+        canvas.width = window.innerWidth / 2;
+        canvas.height = window.innerHeight / 2;
+
+        createWaves(bufferLength);
+
+        function draw() {
+          analyser.getByteFrequencyData(dataArray);
+
+          canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+
           for (let i = 0; i < bufferLength; i++) {
-            const x = (i / bufferLength) * canvas.width;
-            const y = canvas.height / 2;
-            const speed = 0.02 + Math.random() * 0.1;
-            const amplitude = 20 + Math.random() * 30;
-            const frequency = 0.02 + Math.random() * 0.1;
-            waves.push(new Wave(x, y, speed, amplitude, frequency));
-          }
-        }
+            const barHeight = dataArray[i] / 2;
+            const wave = waves[i];
 
-        function drawLines(x, y, size, numLines) {
-          const angleOffset = Math.PI / 6;
+            const y = wave.y + Math.sin(wave.time) * wave.amplitude * barHeight;
 
-          for (let j = 0; j < numLines; j++) {
-            canvasCtx.beginPath();
-            for (let i = 0; i < 12; i++) {
-              const angle = angleOffset + i * ((2 * Math.PI) / 12);
-              const armLength = i % 3 === 0 ? size * 5 : size * 0.3;
-              const armX = x + Math.cos(angle) * armLength;
-              const armY = y + Math.sin(angle) * armLength;
+            drawLines(wave.x, y, 4, 3);
 
-              if (i === 0) {
-                canvasCtx.moveTo(armX, armY);
-              } else {
-                canvasCtx.lineTo(armX, armY);
-              }
+            wave.time += wave.frequency;
+
+            if (wave.x > canvas.width) {
+              wave.x = 0;
             }
-            canvasCtx.closePath();
-            canvasCtx.fillStyle = "#00FF00";
-            canvasCtx.fill();
-            x += size * 2;
           }
+
+          requestAnimationFrame(draw);
         }
-      };
-    </script>
-  </head>
-  <body></body>
+
+        draw();
+      }
+
+      function Wave(x, y, speed, amplitude, frequency) {
+        this.x = x;
+        this.y = y;
+        this.speed = speed;
+        this.amplitude = amplitude;
+        this.frequency = frequency;
+        this.time = 0;
+      }
+
+      function createWaves(bufferLength) {
+        waves.length = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          const x = (i / bufferLength) * canvas.width;
+          const y = canvas.height / 2;
+          const speed = 0.02 + Math.random() * 0.1;
+          const amplitude = 20 + Math.random() * 30;
+          const frequency = 0.02 + Math.random() * 0.1;
+          waves.push(new Wave(x, y, speed, amplitude, frequency));
+        }
+      }
+
+      function drawLines(x, y, size, numLines) {
+        const angleOffset = Math.PI / 6;
+
+        for (let j = 0; j < numLines; j++) {
+          canvasCtx.beginPath();
+          for (let i = 0; i < 12; i++) {
+            const angle = angleOffset + i * ((2 * Math.PI) / 12);
+            const armLength = i % 3 === 0 ? size * 5 : size * 0.3;
+            const armX = x + Math.cos(angle) * armLength;
+            const armY = y + Math.sin(angle) * armLength;
+
+            if (i === 0) {
+              canvasCtx.moveTo(armX, armY);
+            } else {
+              canvasCtx.lineTo(armX, armY);
+            }
+          }
+          canvasCtx.closePath();
+          canvasCtx.fillStyle = "#00FF00";
+          canvasCtx.fill();
+          x += size * 2;
+        }
+      }
+    };
+  </script>
+</head>
+<body></body>
 </html>
