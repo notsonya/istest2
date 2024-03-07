@@ -12,6 +12,7 @@
       align-items: center;
       justify-content: center;
       height: 100vh;
+      background-color: #ffffff; /* Change background color to white */
     }
 
     canvas,
@@ -24,39 +25,39 @@
     }
 
     #audio-visualizer {
-      width: 50vw;
-      height: 50vh;
-      z-index: 1;
-      background-color: transparent;
+      width: 100vw; /* Full screen width */
+      height: 100vh; /* Full screen height */
+      z-index: 1; /* Place audio visualizer above video visualizer */
+      background-color: magenta; /* Change background color to magenta */
     }
 
     #video-visualizer {
-      width: 100vw;
-      height: 100vh;
+      width: 100vw; /* Full screen width */
+      height: 100vh; /* Full screen height */
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-  <script src="https://npm/face-api.js@0.22.2/build/commonjs/index.js"></script>
   <script>
     let sketch = function (p) {
-      const size = 10;
-      const width = 800;
-      const height = 1000;
+      const size = 7;
+      const width = window.innerWidth; // Full screen width
+      const height = window.innerHeight; // Full screen height
       const cols = width / size;
       const rows = height / size;
-      const symbols = [" ", ".", "!", "*", "#", "0"];
+
+      const symbols = ["𝄪", "𝄞", "♯", "𝄡", "𝄫", "𝄢"];
+
       let video;
 
       p.setup = function () {
-        p.createCanvas(width, height);
+        p.createCanvas(window.innerWidth, window.innerHeight); // Full screen canvas dimensions
         video = p.createCapture(p.VIDEO);
-        video.size(width, height);
+        video.size(window.innerWidth, window.innerHeight); // Full screen video size
         video.hide();
       };
 
       p.draw = function () {
-        p.background(21, 2, 150);
+        p.background(255, 255, 255);
         video.loadPixels();
 
         for (let i = 0; i < cols; i++) {
@@ -67,6 +68,7 @@
             let b = video.pixels[index + 2];
             let average = (r + g + b) / 3;
             let symbolIndex = Math.floor(p.map(average, 0, 255, 0, symbols.length - 1));
+
             let gradientColor = p.color(p.map(i, 0, cols - 1, 255, 0), 255, 255);
 
             p.textAlign(p.RIGHT, p.CENTER);
@@ -77,76 +79,34 @@
       };
 
       p.windowResized = function () {
-        p.resizeCanvas(width, height);
+        p.resizeCanvas(window.innerWidth, window.innerHeight); // Full screen canvas dimensions
       };
     };
 
-    window.onload = async function () {
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    let myp5 = new p5(sketch);
+  </script>
+  <script>
+    window.onload = function () {
+      const audioContext = new (window.AudioContext ||
+        window.webkitAudioContext)();
       const analyser = audioContext.createAnalyser();
       const canvas = document.createElement("canvas");
       document.body.appendChild(canvas);
       const canvasCtx = canvas.getContext("2d");
       const waves = [];
 
-      // Load the face-api.js models from CDN
-      await faceapi.nets.tinyFaceDetector.loadFromUri("https://cdn.jsdelivr.net/npm/face-api.js/models");
-      await faceapi.nets.faceLandmark68Net.loadFromUri("https://cdn.jsdelivr.net/npm/face-api.js/models");
-      await faceapi.nets.faceRecognitionNet.loadFromUri("https://cdn.jsdelivr.net/npm/face-api.js/models");
-
-      const video = document.createElement("video");
-      document.body.appendChild(video);
-      const displaySize = { width: window.innerWidth / 2, height: window.innerHeight / 2 };
-      faceapi.matchDimensions(video, displaySize);
-
       navigator.mediaDevices
-        .getUserMedia({ video: {} })
+        .getUserMedia({ audio: true })
         .then((stream) => {
-          video.srcObject = stream;
-          return video.play();
-        })
-        .then(() => {
+          const source = audioContext.createMediaStreamSource(stream);
+          source.connect(analyser);
+          // Commenting out the line below to disable audio playback
+          // analyser.connect(audioContext.destination);
           visualize();
         })
         .catch((err) => {
-          console.error("Error accessing camera:", err);
+          console.error("Error accessing microphone:", err);
         });
-
-      function visualize() {
-        analyser.fftSize = 256;
-        const bufferLength = analyser.frequencyBinCount;
-        const dataArray = new Uint8Array(bufferLength);
-
-        canvas.width = window.innerWidth / 2;
-        canvas.height = window.innerHeight / 2;
-
-        createWaves(bufferLength);
-
-        function draw() {
-          analyser.getByteFrequencyData(dataArray);
-
-          canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
-
-          for (let i = 0; i < bufferLength; i++) {
-            const barHeight = dataArray[i] / 2;
-            const wave = waves[i];
-
-            const y = wave.y + Math.sin(wave.time) * wave.amplitude * barHeight;
-
-            drawLines(wave.x, y, 4, 3);
-
-            wave.time += wave.frequency;
-
-            if (wave.x > canvas.width) {
-              wave.x = 0;
-            }
-          }
-
-          requestAnimationFrame(draw);
-        }
-
-        draw();
-      }
 
       function Wave(x, y, speed, amplitude, frequency) {
         this.x = x;
@@ -187,13 +147,51 @@
             }
           }
           canvasCtx.closePath();
-          canvasCtx.fillStyle = "#00FF00";
+          canvasCtx.fillStyle = "#FF00FF";
           canvasCtx.fill();
           x += size * 2;
         }
+      }
+
+      function visualize() {
+        analyser.fftSize = 256;
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+
+        canvas.width = window.innerWidth ; // Full screen width
+        canvas.height = window.innerHeight ; // Full screen height
+
+        createWaves(bufferLength);
+
+        function draw() {
+          analyser.getByteFrequencyData(dataArray);
+
+          canvasCtx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
+
+          for (let i = 0; i < bufferLength; i++) {
+            const barHeight = dataArray[i] / 2;
+            const wave = waves[i];
+
+            const y =
+              wave.y + Math.sin(wave.time) * wave.amplitude * barHeight;
+
+            drawLines(wave.x, y, 4, 3);
+
+            wave.time += wave.frequency;
+
+            if (wave.x > canvas.width) {
+              wave.x = 0;
+            }
+          }
+
+          requestAnimationFrame(draw);
+        }
+
+        draw();
       }
     };
   </script>
 </head>
 <body></body>
 </html>
+
